@@ -796,63 +796,6 @@ public class Claim
 		return thisCorner.getWorld().getName().compareTo(otherCorner.getWorld().getName()) < 0;
 	}
 	
-	long getPlayerInvestmentScore()
-	{
-		//decide which blocks will be considered player placed
-		Location lesserBoundaryCorner = this.getLesserBoundaryCorner();
-		ArrayList<Integer> playerBlocks = RestoreNatureProcessingTask.getPlayerBlocks(lesserBoundaryCorner.getWorld().getEnvironment(), lesserBoundaryCorner.getBlock().getBiome());
-		
-		//scan the claim for player placed blocks
-		double score = 0;
-		
-		boolean creativeMode = GriefPrevention.instance.creativeRulesApply(lesserBoundaryCorner);
-		
-		for(int x = this.lesserBoundaryCorner.getBlockX(); x <= this.greaterBoundaryCorner.getBlockX(); x++)
-		{
-			for(int z = this.lesserBoundaryCorner.getBlockZ(); z <= this.greaterBoundaryCorner.getBlockZ(); z++)
-			{
-				int y = this.lesserBoundaryCorner.getBlockY();
-				for(; y < GriefPrevention.instance.getSeaLevel(this.lesserBoundaryCorner.getWorld()) - 5; y++)
-				{
-					Block block = this.lesserBoundaryCorner.getWorld().getBlockAt(x, y, z);
-					if(playerBlocks.contains(block.getTypeId()))
-					{
-						if(block.getType() == Material.CHEST && !creativeMode)
-						{
-							score += 10;
-						}
-						else
-						{
-							score += .5;
-						}						
-					}
-				}
-				
-				for(; y < this.lesserBoundaryCorner.getWorld().getMaxHeight(); y++)
-				{
-					Block block = this.lesserBoundaryCorner.getWorld().getBlockAt(x, y, z);
-					if(playerBlocks.contains(block.getTypeId()))
-					{
-						if(block.getType() == Material.CHEST && !creativeMode)
-						{
-							score += 10;
-						}
-						else if(creativeMode && (block.getType() == Material.LAVA || block.getType() == Material.STATIONARY_LAVA))
-						{
-							score -= 10;
-						}
-						else 
-						{
-							score += 1;
-						}						
-					}
-				}
-			}
-		}
-		
-		return (long)score;
-	}
-
     public ArrayList<Chunk> getChunks()
     {
         ArrayList<Chunk> chunks = new ArrayList<Chunk>();

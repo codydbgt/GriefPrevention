@@ -33,7 +33,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import me.ryanhamshire.GriefPrevention.DataStore.NoTransferException;
-import net.milkbowl.vault.economy.Economy;
+import net.milkbowl.vault.economy.Economy; 
 
 import org.bukkit.ChatColor;
 import org.bukkit.Chunk;
@@ -290,10 +290,6 @@ public class GriefPrevention extends JavaPlugin
 			this.getServer().getScheduler().scheduleSyncRepeatingTask(this, task, 20L * 60 * 10, 20L * 60 * 10);
 		}
 		
-		//start the recurring cleanup event for entities in creative worlds
-		EntityCleanupTask task = new EntityCleanupTask(0);
-		this.getServer().getScheduler().scheduleSyncDelayedTask(GriefPrevention.instance, task, 20L * 60 * 2);
-		
 		//start recurring cleanup scan for unused claims belonging to inactive players
 		CleanupUnusedClaimsTask task2 = new CleanupUnusedClaimsTask();
 		this.getServer().getScheduler().scheduleSyncRepeatingTask(this, task2, 20L * 60 * 2, 20L * 60 * 5);
@@ -308,10 +304,7 @@ public class GriefPrevention extends JavaPlugin
 		//block events
 		BlockEventHandler blockEventHandler = new BlockEventHandler(this.dataStore);
 		pluginManager.registerEvents(blockEventHandler, this);
-				
-		//entity events
-		EntityEventHandler entityEventHandler = new EntityEventHandler(this.dataStore);
-		pluginManager.registerEvents(entityEventHandler, this);
+			
 		
 		//if economy is enabled
 		if(this.config_economy_claimBlocksPurchaseCost > 0 || this.config_economy_claimBlocksSellValue > 0)
@@ -2918,14 +2911,8 @@ public class GriefPrevention extends JavaPlugin
 			}
 		}
 		
-		//create task to process those data in another thread
-		Location lesserBoundaryCorner = chunk.getBlock(0,  0, 0).getLocation();
-		Location greaterBoundaryCorner = chunk.getBlock(15, 0, 15).getLocation();
-		
-		//create task
-		//when done processing, this task will create a main thread task to actually update the world with processing results
-		RestoreNatureProcessingTask task = new RestoreNatureProcessingTask(snapshots, miny, chunk.getWorld().getEnvironment(), lesserBoundaryCorner.getBlock().getBiome(), lesserBoundaryCorner, greaterBoundaryCorner, this.getSeaLevel(chunk.getWorld()), aggressiveMode, GriefPrevention.instance.creativeRulesApply(lesserBoundaryCorner), playerReceivingVisualization);
-		GriefPrevention.instance.getServer().getScheduler().runTaskLaterAsynchronously(GriefPrevention.instance, task, delayInTicks);
+		chunk.getBlock(0,  0, 0).getLocation();
+		chunk.getBlock(15, 0, 15).getLocation();
 	}
 	
 	private void parseMaterialListFromConfig(List<String> stringsToParse, MaterialCollection materialCollection)
