@@ -1901,11 +1901,6 @@ public class GriefPrevention extends JavaPlugin
 			//can't start a siege when you're already involved in one
 			Player attacker = player;
 			PlayerData attackerData = this.dataStore.getPlayerData(attacker.getUniqueId());
-			if(attackerData.siegeData != null)
-			{
-				GriefPrevention.sendMessage(player, TextMode.Err, Messages.AlreadySieging);
-				return true;
-			}
 			
 			//can't start a siege when you're protected from pvp combat
 			if(attackerData.pvpImmune)
@@ -1948,21 +1943,6 @@ public class GriefPrevention extends JavaPlugin
                 return true;
 			}
 			
-			//victim must not be under siege already
-			PlayerData defenderData = this.dataStore.getPlayerData(defender.getUniqueId());
-			if(defenderData.siegeData != null)
-			{
-				GriefPrevention.sendMessage(player, TextMode.Err, Messages.AlreadyUnderSiegePlayer);
-				return true;
-			}
-			
-			//victim must not be pvp immune
-			if(defenderData.pvpImmune)
-			{
-				GriefPrevention.sendMessage(player, TextMode.Err, Messages.NoSiegeDefenseless);
-				return true;
-			}
-			
 			Claim defenderClaim = this.dataStore.getClaimAt(defender.getLocation(), false, null);
 			
 			//defender must have some level of permission there to be protected
@@ -1979,13 +1959,6 @@ public class GriefPrevention extends JavaPlugin
 				return true;
 			}
 			
-			//claim can't be under siege already
-			if(defenderClaim.siegeData != null)
-			{
-				GriefPrevention.sendMessage(player, TextMode.Err, Messages.AlreadyUnderSiegeArea);
-				return true;
-			}
-			
 			//can't siege admin claims
 			if(defenderClaim.isAdminClaim())
 			{
@@ -1998,10 +1971,7 @@ public class GriefPrevention extends JavaPlugin
 			{
 				GriefPrevention.sendMessage(player, TextMode.Err, Messages.SiegeOnCooldown);
 				return true;
-			}
-			
-			//start the siege
-			dataStore.startSiege(attacker, defender, defenderClaim);			
+			}		
 
 			//confirmation message for attacker, warning message for defender
 			GriefPrevention.sendMessage(defender, TextMode.Warn, Messages.SiegeAlert, attacker.getName());

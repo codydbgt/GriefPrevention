@@ -507,7 +507,7 @@ class PlayerEventHandler implements Listener
 		//if in pvp, block any pvp-banned slash commands
 		if(playerData == null) playerData = this.dataStore.getPlayerData(event.getPlayer().getUniqueId());
 
-		if((playerData.inPvpCombat() || playerData.siegeData != null) && GriefPrevention.instance.config_pvp_blockedCommands.contains(command))
+		if((playerData.inPvpCombat() ) && GriefPrevention.instance.config_pvp_blockedCommands.contains(command))
 		{
 			event.setCancelled(true);
 			GriefPrevention.sendMessage(event.getPlayer(), TextMode.Err, Messages.CommandBannedInPvP);
@@ -877,11 +877,7 @@ class PlayerEventHandler implements Listener
         
         //FEATURE: during a siege, any player who logs out dies and forfeits the siege
         
-        //if player was involved in a siege, he forfeits
-        if(playerData.siegeData != null)
-        {
-            if(player.getHealth() > 0) player.setHealth(0);  //might already be zero from above, this avoids a double death message
-        }
+
         
         //drop data about this player
         this.dataStore.clearCachedPlayerData(playerID);
@@ -951,13 +947,7 @@ class PlayerEventHandler implements Listener
 			GriefPrevention.sendMessage(player, TextMode.Err, Messages.PvPNoDrop);
 			event.setCancelled(true);			
 		}
-		
-		//if he's under siege, don't let him drop it
-		else if(playerData.siegeData != null)
-		{
-			GriefPrevention.sendMessage(player, TextMode.Err, Messages.SiegeNoDrop);
-			event.setCancelled(true);
-		}
+
 	}
 	
 	//when a player teleports via a portal
@@ -1046,7 +1036,7 @@ class PlayerEventHandler implements Listener
 		
 		Location source = event.getFrom();
 		Claim sourceClaim = this.dataStore.getClaimAt(source, false, playerData.lastClaim);
-		if(sourceClaim != null && sourceClaim.siegeData != null)
+		if(sourceClaim != null)
 		{
 			GriefPrevention.sendMessage(player, TextMode.Err, Messages.SiegeNoTeleport);
 			event.setCancelled(true);
@@ -1055,7 +1045,7 @@ class PlayerEventHandler implements Listener
 		
 		Location destination = event.getTo();
 		Claim destinationClaim = this.dataStore.getClaimAt(destination, false, null);
-		if(destinationClaim != null && destinationClaim.siegeData != null)
+		if(destinationClaim != null)
 		{
 			GriefPrevention.sendMessage(player, TextMode.Err, Messages.BesiegedNoTeleport);
 			event.setCancelled(true);
@@ -1118,24 +1108,6 @@ class PlayerEventHandler implements Listener
 		
 		//always allow interactions when player is in ignore claims mode
         if(playerData.ignoreClaims) return;
-        
-        //don't allow container access during pvp combat
-        if((entity instanceof StorageMinecart || entity instanceof PoweredMinecart))
-        {
-            if(playerData.siegeData != null)
-            {
-                GriefPrevention.sendMessage(player, TextMode.Err, Messages.SiegeNoContainers);
-                event.setCancelled(true);
-                return;
-            }
-            
-            if(playerData.inPvpCombat())
-            {
-                GriefPrevention.sendMessage(player, TextMode.Err, Messages.PvPNoContainers);
-                event.setCancelled(true);
-                return;
-            }           
-        }
         
 		//if the entity is a vehicle and we're preventing theft in claims		
 		if(GriefPrevention.instance.config_claims_preventTheft && entity instanceof Vehicle)

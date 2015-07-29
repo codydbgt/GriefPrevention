@@ -29,7 +29,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import me.ryanhamshire.GriefPrevention.Claim;
 import me.ryanhamshire.GriefPrevention.GriefPrevention;
 import me.ryanhamshire.GriefPrevention.ShovelMode;
-import me.ryanhamshire.GriefPrevention.SiegeData;
 import me.ryanhamshire.GriefPrevention.Visualization;
 
 import org.bukkit.Location;
@@ -107,9 +106,6 @@ public class PlayerData
 	
 	//the last claim this player was in, that we know of
 	public Claim lastClaim = null;
-	
-	//siege
-	public SiegeData siegeData = null;
 	
 	//pvp
 	public long lastPvpTimestamp = 0;
