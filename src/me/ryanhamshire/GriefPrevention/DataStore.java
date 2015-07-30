@@ -40,7 +40,7 @@ import com.google.common.io.Files;
 public abstract class DataStore 
 {
 	//in-memory cache for player data
-	protected ConcurrentHashMap<UUID, PlayerData> playerNameToPlayerDataMap = new ConcurrentHashMap<UUID, PlayerData>();
+	protected ConcurrentHashMap<String, PlayerData> playerNameToPlayerDataMap = new ConcurrentHashMap<String, PlayerData>();
 	
 	//in-memory cache for group (permission-based) data
 	protected ConcurrentHashMap<String, Integer> permissionToBonusBlocksMap = new ConcurrentHashMap<String, Integer>();
@@ -81,7 +81,7 @@ public abstract class DataStore
     static final String SUBDIVISION_VIDEO_URL = "" + ChatColor.DARK_AQUA + ChatColor.UNDERLINE + "bit.ly/mcgpsub" + ChatColor.RESET;
     
     //list of UUIDs which are soft-muted
-    ConcurrentHashMap<UUID, Boolean> softMuteMap = new ConcurrentHashMap<UUID, Boolean>();
+    ConcurrentHashMap<String, Boolean> softMuteMap = new ConcurrentHashMap<String, Boolean>();
     
     //world guard reference, if available
     private WorldGuardWrapper worldGuard = null;
@@ -121,26 +121,6 @@ public abstract class DataStore
 		this.loadMessages();
 		GriefPrevention.AddLogEntry("Customizable messages loaded.");
 		
-		//if converting up from an earlier schema version, write all claims back to storage using the latest format
-        if(this.getSchemaVersion() < latestSchemaVersion)
-        {
-            GriefPrevention.AddLogEntry("Please wait.  Updating data format.");
-            
-            for(Claim claim : this.claims)
-            {
-                this.saveClaim(claim);
-            }
-            
-            //clean up any UUID conversion work
-            if(UUIDFetcher.lookupCache != null)
-            {
-                UUIDFetcher.lookupCache.clear();
-                UUIDFetcher.correctedNames.clear();
-            }
-            
-            GriefPrevention.AddLogEntry("Update finished.");
-        }
-		
 		//load list of soft mutes
         this.loadSoftMutes();
         
@@ -174,10 +154,10 @@ public abstract class DataStore
                 while(nextID != null)
                 {                
                     //parse line into a UUID
-                    UUID playerID;
+                    String playerID;
                     try
                     {
-                        playerID = UUID.fromString(nextID);
+                        playerID = nextID;
                     }
                     catch(Exception e)
                     {
@@ -210,7 +190,7 @@ public abstract class DataStore
     }
 	
 	//updates soft mute map and data file
-	boolean toggleSoftMute(UUID playerID)
+	boolean toggleSoftMute(String playerID)
 	{
 	    boolean newValue = !this.isSoftMuted(playerID);
 	    
@@ -220,7 +200,7 @@ public abstract class DataStore
 	    return newValue;
 	}
 	
-	public boolean isSoftMuted(UUID playerID)
+	public boolean isSoftMuted(String playerID)
 	{
 	    Boolean mapEntry = this.softMuteMap.get(playerID);
 	    if(mapEntry == null || mapEntry == Boolean.FALSE)
@@ -242,7 +222,7 @@ public abstract class DataStore
             softMuteFile.createNewFile();
             outStream = new BufferedWriter(new FileWriter(softMuteFile));
             
-            for(Map.Entry<UUID, Boolean> entry : softMuteMap.entrySet())
+            for(Map.Entry<String, Boolean> entry : softMuteMap.entrySet())
             {
                 if(entry.getValue().booleanValue())
                 {
@@ -269,7 +249,7 @@ public abstract class DataStore
 	}
 	
     //removes cached player data from memory
-	synchronized void clearCachedPlayerData(UUID playerID)
+	synchronized void clearCachedPlayerData(String playerID)
 	{
 		this.playerNameToPlayerDataMap.remove(playerID);
 	}
@@ -277,7 +257,7 @@ public abstract class DataStore
 	//gets the number of bonus blocks a player has from his permissions
 	//Bukkit doesn't allow for checking permissions of an offline player.
 	//this will return 0 when he's offline, and the correct number when online.
-	synchronized int getGroupBonusBlocks(UUID playerID)
+	synchronized int getGroupBonusBlocks(String playername)
 	{
 		int bonusBlocks = 0;
 		Set<String> keys = permissionToBonusBlocksMap.keySet();
@@ -285,7 +265,7 @@ public abstract class DataStore
 		while(iterator.hasNext())
 		{
 			String groupName = iterator.next();
-			Player player = GriefPrevention.instance.getServer().getPlayer(playerID);
+			Player player = GriefPrevention.instance.getServer().getPlayer(playername);
 			if(player != null && player.hasPermission(groupName))
 			{
 				bonusBlocks += this.permissionToBonusBlocksMap.get(groupName);
@@ -319,7 +299,7 @@ public abstract class DataStore
 	        super(message);
 	    }
 	}
-	synchronized public void changeClaimOwner(Claim claim, UUID newOwnerID) throws NoTransferException
+	synchronized public void changeClaimOwner(Claim claim,String owner) throws NoTransferException
 	{
 		//if it's a subdivision, throw an exception
 		if(claim.parent != null)
@@ -339,13 +319,13 @@ public abstract class DataStore
 		//determine new owner
 		PlayerData newOwnerData = null;
 		
-		if(newOwnerID != null)
+		if(owner != null)
 	    {
-		    newOwnerData = this.getPlayerData(newOwnerID);
+		    newOwnerData = this.getPlayerData(owner);
 	    }
 		
 		//transfer
-		claim.ownerID = newOwnerID;
+		claim.ownerID = owner;
 		this.saveClaim(claim);
 		
 		//adjust blocks and other records
@@ -484,7 +464,7 @@ public abstract class DataStore
 	
 	//retrieves player data from memory or secondary storage, as necessary
 	//if the player has never been on the server before, this will return a fresh player data with default values
-	synchronized public PlayerData getPlayerData(UUID playerID)
+	synchronized public PlayerData getPlayerData(String playerID)
 	{
 		//first, look in memory
 		PlayerData playerData = this.playerNameToPlayerDataMap.get(playerID);
@@ -502,7 +482,7 @@ public abstract class DataStore
 		return playerData;
 	}
 	
-	abstract PlayerData getPlayerDataFromStorage(UUID playerID);
+	abstract PlayerData getPlayerDataFromStorage(String playerID);
 	
 	//deletes a claim or subdivision
     synchronized public void deleteClaim(Claim claim)
@@ -651,7 +631,7 @@ public abstract class DataStore
 	//does NOT check a player has permission to create a claim, or enough claim blocks.
 	//does NOT check minimum claim size constraints
 	//does NOT visualize the new claim for any players	
-	synchronized public CreateClaimResult createClaim(World world, int x1, int x2, int y1, int y2, int z1, int z2, UUID ownerID, Claim parent, Long id, Player creatingPlayer)
+	synchronized public CreateClaimResult createClaim(World world, int x1, int x2, int y1, int y2, int z1, int z2, String ownerID, Claim parent, Long id, Player creatingPlayer)
 	{
 		CreateClaimResult result = new CreateClaimResult();
 		
@@ -756,7 +736,7 @@ public abstract class DataStore
 	}
 	
 	//saves changes to player data to secondary storage.  MUST be called after you're done making changes, otherwise a reload will lose them
-    public void savePlayerDataSync(UUID playerID, PlayerData playerData)
+    public void savePlayerDataSync(String playerID, PlayerData playerData)
     {
         //ensure player data is already read from file before trying to save
         playerData.getAccruedClaimBlocks();
@@ -766,12 +746,12 @@ public abstract class DataStore
     }
 	
 	//saves changes to player data to secondary storage.  MUST be called after you're done making changes, otherwise a reload will lose them
-	public void savePlayerData(UUID playerID, PlayerData playerData)
+	public void savePlayerData(String playerID, PlayerData playerData)
 	{
 	    new SavePlayerDataThread(playerID, playerData).start();
 	}
 	
-	public void asyncSavePlayerData(UUID playerID, PlayerData playerData)
+	public void asyncSavePlayerData(String playerID, PlayerData playerData)
 	{
 	    //save everything except the ignore list
 	    this.overrideSavePlayerData(playerID, playerData);
@@ -782,7 +762,7 @@ public abstract class DataStore
     	    StringBuilder fileContent = new StringBuilder();
             try
             {
-                for(UUID uuidKey : playerData.ignoredPlayers.keySet())
+                for(String uuidKey : playerData.ignoredPlayers.keySet())
                 {
                     Boolean value = playerData.ignoredPlayers.get(uuidKey);
                     if(value == null) continue;
@@ -811,7 +791,7 @@ public abstract class DataStore
 	    }
 	}
 	
-	abstract void overrideSavePlayerData(UUID playerID, PlayerData playerData);
+	abstract void overrideSavePlayerData(String playerID, PlayerData playerData);
 	
 	//extends a claim to a new depth
 	//respects the max depth config variable
@@ -868,7 +848,7 @@ public abstract class DataStore
 		}
 		
 		//look for genderal defender cooldown
-        PlayerData defenderData = this.getPlayerData(defender.getUniqueId());
+        PlayerData defenderData = this.getPlayerData(defender.getName());
 		if(defenderData.lastSiegeEndTimeStamp > 0)
         {
             long now = System.currentTimeMillis();
@@ -898,7 +878,7 @@ public abstract class DataStore
 
 	
 	//deletes all claims owned by a player
-	synchronized public void deleteClaimsForPlayer(UUID playerID, boolean deleteCreativeClaims)
+	synchronized public void deleteClaimsForPlayer(String playerID, boolean deleteCreativeClaims)
 	{
 		//make a list of the player's claims
 		ArrayList<Claim> claimsToDelete = new ArrayList<Claim>();
@@ -1263,58 +1243,14 @@ public abstract class DataStore
 		return message;		
 	}
 	
-	//used in updating the data schema from 0 to 1.
-	//converts player names in a list to uuids
-	protected String[] convertNameListToUUIDList(String[] names)
-	{
-	    //doesn't apply after schema has been updated to version 1
-	    if(this.getSchemaVersion() >= 1) return names;
-	    
-	    //list to build results
-	    List<String> resultNames = new ArrayList<String>();
-	    
-	    for(String name : names)
-	    {
-	        //skip non-player-names (groups and "public"), leave them as-is
-	        if(name.startsWith("[") || name.equals("public"))
-            {
-	            resultNames.add(name);
-	            continue;
-            }
-	        
-	        //otherwise try to convert to a UUID
-	        UUID playerID = null;
-	        try
-	        {
-	            playerID = UUIDFetcher.getUUIDOf(name);
-	        }
-	        catch(Exception ex){ }
-	        
-	        //if successful, replace player name with corresponding UUID
-	        if(playerID != null)
-	        {
-	            resultNames.add(playerID.toString());
-	        }
-	    }
-	    
-	    //return final result of conversion
-	    String [] resultArray = new String [resultNames.size()];
-	    for(int i = 0; i < resultNames.size(); i++)
-	    {
-	        resultArray[i] = resultNames.get(i);
-	    }
-	    
-	    return resultArray;
-    }
-	
 	abstract void close();
 	
 	private class SavePlayerDataThread extends Thread
 	{
-	    private UUID playerID;
+	    private String playerID;
 	    private PlayerData playerData;
 	    
-	    SavePlayerDataThread(UUID playerID, PlayerData playerData)
+	    SavePlayerDataThread(String playerID, PlayerData playerData)
 	    {
 	        this.playerID = playerID;
 	        this.playerData = playerData;

@@ -11,10 +11,10 @@ import com.google.common.io.Files;
 //loads ignore data from file into a hash map
 class IgnoreLoaderThread extends Thread
 {
-    private UUID playerToLoad;
-    private ConcurrentHashMap<UUID, Boolean> destinationMap;
+    private String playerToLoad;
+    private ConcurrentHashMap<String, Boolean> destinationMap;
     
-    IgnoreLoaderThread(UUID playerToLoad, ConcurrentHashMap<UUID, Boolean> destinationMap)
+    IgnoreLoaderThread(String playerToLoad, ConcurrentHashMap<String, Boolean> destinationMap)
     {
         this.playerToLoad = playerToLoad;
         this.destinationMap = destinationMap;
@@ -52,7 +52,7 @@ class IgnoreLoaderThread extends Thread
                     }
                     try
                     {
-                        UUID ignoredUUID = UUID.fromString(line);
+                    	String ignoredUUID = line;
                         this.destinationMap.put(ignoredUUID, adminIgnore);
                     }
                     catch(IllegalArgumentException e){}  //if a bad UUID, ignore the line

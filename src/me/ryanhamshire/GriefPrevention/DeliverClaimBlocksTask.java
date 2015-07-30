@@ -43,7 +43,7 @@ class DeliverClaimBlocksTask implements Runnable
 	    //if no player specified, this task will create a player-specific task for each online player, scheduled one tick apart
 	    if(this.player == null)
 		{
-	        Collection<Player> players = (Collection<Player>)GriefPrevention.instance.getServer().getOnlinePlayers();
+	         Player[] players = GriefPrevention.instance.getServer().getOnlinePlayers(); 
 	        
 	        long i = 0;
 	        for(Player onlinePlayer : players)
@@ -57,7 +57,7 @@ class DeliverClaimBlocksTask implements Runnable
 	    else
 	    {
 	        DataStore dataStore = GriefPrevention.instance.dataStore;
-            PlayerData playerData = dataStore.getPlayerData(player.getUniqueId());
+            PlayerData playerData = dataStore.getPlayerData(player.getName());
             
             Location lastLocation = playerData.lastAfkCheckLocation;
             try

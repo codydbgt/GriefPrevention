@@ -19,16 +19,12 @@
 package me.ryanhamshire.GriefPrevention;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
-import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.World.Environment;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
-import org.bukkit.block.BlockState;
 import org.bukkit.block.Hopper;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
@@ -40,16 +36,10 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockBurnEvent;
 import org.bukkit.event.block.BlockDispenseEvent;
 import org.bukkit.event.block.BlockFromToEvent;
-import org.bukkit.event.block.BlockIgniteEvent;
-import org.bukkit.event.block.BlockIgniteEvent.IgniteCause;
-import org.bukkit.event.block.BlockMultiPlaceEvent;
 import org.bukkit.event.block.BlockPistonExtendEvent;
-import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.block.BlockSpreadEvent;
-import org.bukkit.event.block.SignChangeEvent;
 import org.bukkit.event.inventory.InventoryPickupItemEvent;
-import org.bukkit.event.world.StructureGrowEvent;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.material.Dispenser;
@@ -96,81 +86,7 @@ public class BlockEventHandler implements Listener
 			return;
 		}
 	}
-	
-	//when a player places a sign...
-	@EventHandler(ignoreCancelled = true)
-	public void onSignChanged(SignChangeEvent event)
-	{
-	    //send sign content to online administrators
-	    if(!GriefPrevention.instance.config_signNotifications) return;
-	    
-	    Player player = event.getPlayer();
-		if(player == null) return;
-		
-		StringBuilder lines = new StringBuilder(" placed a sign @ " + GriefPrevention.getfriendlyLocationString(event.getBlock().getLocation()));
-		boolean notEmpty = false;
-		for(int i = 0; i < event.getLines().length; i++)
-		{
-			String withoutSpaces = event.getLine(i).replace(" ", ""); 
-		    if(!withoutSpaces.isEmpty())
-	        {
-		        notEmpty = true;
-		        lines.append("\n  " + event.getLine(i));
-	        }
-		}
-		
-		String signMessage = lines.toString();
-		
-		//prevent signs with blocked IP addresses 
-		if(!player.hasPermission("griefprevention.spam") && GriefPrevention.instance.containsBlockedIP(signMessage))
-        {
-            event.setCancelled(true);
-            return;
-        }
-		
-		//if not empty and wasn't the same as the last sign, log it and remember it for later
-		PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
-		if(notEmpty && playerData.lastMessage != null && !playerData.lastMessage.equals(signMessage))
-		{		
-			GriefPrevention.AddLogEntry(player.getName() + lines.toString().replace("\n  ", ";"), null);
-			PlayerEventHandler.makeSocialLogEntry(player.getName(), signMessage);
-			playerData.lastMessage = signMessage;
-			
-			if(!player.hasPermission("griefprevention.eavesdropsigns"))
-			{
-				Collection<Player> players = (Collection<Player>)GriefPrevention.instance.getServer().getOnlinePlayers();
-				for(Player otherPlayer : players)
-				{
-					if(otherPlayer.hasPermission("griefprevention.eavesdropsigns"))
-					{
-						otherPlayer.sendMessage(ChatColor.GRAY + player.getName() + signMessage);
-					}
-				}
-			}
-		}
-	}
-	
-	//when a player places multiple blocks...
-	@EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
-	public void onBlocksPlace(BlockMultiPlaceEvent placeEvent)
-	{
-	    Player player = placeEvent.getPlayer();
-	    
-	    //don't track in worlds where claims are not enabled
-        if(!GriefPrevention.instance.claimsEnabledForWorld(placeEvent.getBlock().getWorld())) return;
-        
-        //make sure the player is allowed to build at the location
-        for(BlockState block : placeEvent.getReplacedBlockStates())
-        {
-            String noBuildReason = GriefPrevention.instance.allowBuild(player, block.getLocation(), block.getType());
-            if(noBuildReason != null)
-            {
-                GriefPrevention.sendMessage(player, TextMode.Err, noBuildReason);
-                placeEvent.setCancelled(true);
-                return;
-            }
-        }
-	}
+
 	
 	//when a player places a block...
 	@EventHandler(ignoreCancelled = true, priority = EventPriority.HIGH)
@@ -180,23 +96,6 @@ public class BlockEventHandler implements Listener
 		Block block = placeEvent.getBlock();
 				
 		//FEATURE: limit fire placement, to prevent PvP-by-fire
-		
-		//if placed block is fire and pvp is off, apply rules for proximity to other players 
-		if(block.getType() == Material.FIRE && !GriefPrevention.instance.pvpRulesApply(block.getWorld()) && !player.hasPermission("griefprevention.lava"))
-		{
-			List<Player> players = block.getWorld().getPlayers();
-			for(int i = 0; i < players.size(); i++)
-			{
-				Player otherPlayer = players.get(i);
-				Location location = otherPlayer.getLocation();
-				if(!otherPlayer.equals(player) && location.distanceSquared(block.getLocation()) < 9)
-				{
-					GriefPrevention.sendMessage(player, TextMode.Err, Messages.PlayerTooCloseForFire, otherPlayer.getName());
-					placeEvent.setCancelled(true);
-					return;
-				}					
-			}
-		}
 		
 		//don't track in worlds where claims are not enabled
         if(!GriefPrevention.instance.claimsEnabledForWorld(placeEvent.getBlock().getWorld())) return;
@@ -211,7 +110,7 @@ public class BlockEventHandler implements Listener
 		}
 		
 		//if the block is being placed within or under an existing claim
-		PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
+		PlayerData playerData = this.dataStore.getPlayerData(player.getName());
 		Claim claim = this.dataStore.getClaimAt(block.getLocation(), true, playerData.lastClaim);
 		if(claim != null)
 		{
@@ -240,12 +139,6 @@ public class BlockEventHandler implements Listener
 		//otherwise if there's no claim, the player is placing a chest, and new player automatic claims are enabled
 		else if(block.getType() == Material.CHEST && GriefPrevention.instance.config_claims_automaticClaimsForNewPlayersRadius > -1 && GriefPrevention.instance.claimsEnabledForWorld(block.getWorld()))
 		{			
-			//if the chest is too deep underground, don't create the claim and explain why
-			if(GriefPrevention.instance.config_claims_preventTheft && block.getY() < GriefPrevention.instance.config_claims_maxDepth)
-			{
-				GriefPrevention.sendMessage(player, TextMode.Warn, Messages.TooDeepToClaim);
-				return;
-			}
 			
 			int radius = GriefPrevention.instance.config_claims_automaticClaimsForNewPlayersRadius;
 			
@@ -255,7 +148,7 @@ public class BlockEventHandler implements Listener
 				//radius == 0 means protect ONLY the chest
 				if(GriefPrevention.instance.config_claims_automaticClaimsForNewPlayersRadius == 0)
 				{					
-					this.dataStore.createClaim(block.getWorld(), block.getX(), block.getX(), block.getY(), block.getY(), block.getZ(), block.getZ(), player.getUniqueId(), null, null, player);
+					this.dataStore.createClaim(block.getWorld(), block.getX(), block.getX(), block.getY(), block.getY(), block.getZ(), block.getZ(), player.getName(), null, null, player);
 					GriefPrevention.sendMessage(player, TextMode.Success, Messages.ChestClaimConfirmation);					
 				}
 				
@@ -268,7 +161,7 @@ public class BlockEventHandler implements Listener
 							block.getX() - radius, block.getX() + radius, 
 							block.getY() - GriefPrevention.instance.config_claims_claimsExtendIntoGroundDistance, block.getY(), 
 							block.getZ() - radius, block.getZ() + radius, 
-							player.getUniqueId(), 
+							player.getName(), 
 							null, null,
 							player).succeeded)
 					{
@@ -288,25 +181,12 @@ public class BlockEventHandler implements Listener
 			}
 			
 			//check to see if this chest is in a claim, and warn when it isn't
-			if(GriefPrevention.instance.config_claims_preventTheft && this.dataStore.getClaimAt(block.getLocation(), false, playerData.lastClaim) == null)
+			if(this.dataStore.getClaimAt(block.getLocation(), false, playerData.lastClaim) == null)
 			{
 				GriefPrevention.sendMessage(player, TextMode.Warn, Messages.UnprotectedChestWarning);				
 			}
 		}
-		
-		//FEATURE: limit wilderness tree planting to grass, or dirt with more blocks beneath it
-		else if(block.getType() == Material.SAPLING && GriefPrevention.instance.config_blockSkyTrees && GriefPrevention.instance.claimsEnabledForWorld(player.getWorld()))
-		{
-			Block earthBlock = placeEvent.getBlockAgainst();
-			if(earthBlock.getType() != Material.GRASS)
-			{
-				if(earthBlock.getRelative(BlockFace.DOWN).getType() == Material.AIR || 
-				   earthBlock.getRelative(BlockFace.DOWN).getRelative(BlockFace.DOWN).getType() == Material.AIR)
-				{
-					placeEvent.setCancelled(true);
-				}
-			}
-		}	
+
 		
 		//FEATURE: warn players when they're placing non-trash blocks outside of their claimed areas
 		else if(!this.trashBlocks.contains(block.getType()) && GriefPrevention.instance.claimsEnabledForWorld(block.getWorld()))
@@ -336,23 +216,6 @@ public class BlockEventHandler implements Listener
     				}
 			    }
 			}
-		}
-		
-		//warn players when they place TNT above sea level, since it doesn't destroy blocks there
-		if(	GriefPrevention.instance.config_blockSurfaceOtherExplosions && block.getType() == Material.TNT &&
-			block.getWorld().getEnvironment() != Environment.NETHER &&
-			block.getY() > GriefPrevention.instance.getSeaLevel(block.getWorld()) - 5 &&
-			claim == null)
-		{
-			GriefPrevention.sendMessage(player, TextMode.Warn, Messages.NoTNTDamageAboveSeaLevel);
-		}
-		
-		//warn players about disabled pistons outside of land claims
-		if( GriefPrevention.instance.config_pistonsInClaimsOnly && 
-	        (block.getType() == Material.PISTON_BASE || block.getType() == Material.PISTON_STICKY_BASE) &&
-	        claim == null )
-		{
-		    GriefPrevention.sendMessage(player, TextMode.Warn, Messages.NoPistonsOutsideClaims);
 		}
 	}
 	
@@ -392,35 +255,6 @@ public class BlockEventHandler implements Listener
 		Claim claim = this.dataStore.getClaimAt(event.getBlock().getLocation(), false, null);
 		if(claim != null) pistonClaimOwnerName = claim.getOwnerName();
 		
-		//if pistons are limited to same-claim block movement
-		if(GriefPrevention.instance.config_pistonsInClaimsOnly)
-		{
-		    //if piston is not in a land claim, cancel event
-		    if(claim == null)
-	        {
-		        event.setCancelled(true);
-		        return;
-	        }
-		    
-		    for(Block pushedBlock : event.getBlocks())
-		    {
-		        //if pushing blocks located outside the land claim it lives in, cancel the event
-	            if(!claim.contains(pushedBlock.getLocation(), false, false))
-		        {
-		            event.setCancelled(true);
-		            return;
-		        }
-		        
-		        //if pushing a block inside the claim out of the claim, cancel the event
-	            //reason: could push into another land claim, don't want to spend CPU checking for that
-	            //reason: push ice out, place torch, get water outside the claim
-	            if(!claim.contains(pushedBlock.getRelative(event.getDirection()).getLocation(), false, false))
-                {
-                    event.setCancelled(true);
-                    return;
-                }
-		    }
-		}
 		
 		//otherwise, consider ownership of piston and EACH pushed block
 		else
@@ -478,21 +312,6 @@ public class BlockEventHandler implements Listener
 		}
 	}
 	
-	
-	//blocks are ignited ONLY by flint and steel (not by being near lava, open flames, etc), unless configured otherwise
-	@EventHandler(priority = EventPriority.LOWEST)
-	public void onBlockIgnite (BlockIgniteEvent igniteEvent)
-	{
-	    //don't track in worlds where claims are not enabled
-        if(!GriefPrevention.instance.claimsEnabledForWorld(igniteEvent.getBlock().getWorld())) return;
-        
-	    
-	    if(!GriefPrevention.instance.config_fireSpreads && igniteEvent.getCause() != IgniteCause.FLINT_AND_STEEL &&  igniteEvent.getCause() != IgniteCause.LIGHTNING)
-		{	
-			igniteEvent.setCancelled(true);			
-		}
-	}
-	
 	//fire doesn't spread unless configured to, but other blocks still do (mushrooms and vines, for example)
 	@EventHandler(priority = EventPriority.LOWEST)
 	public void onBlockSpread (BlockSpreadEvent spreadEvent)
@@ -501,19 +320,6 @@ public class BlockEventHandler implements Listener
 		
 		//don't track in worlds where claims are not enabled
         if(!GriefPrevention.instance.claimsEnabledForWorld(spreadEvent.getBlock().getWorld())) return;
-        
-		if(!GriefPrevention.instance.config_fireSpreads)
-		{
-			spreadEvent.setCancelled(true);
-			
-			Block underBlock = spreadEvent.getSource().getRelative(BlockFace.DOWN);
-			if(underBlock.getType() != Material.NETHERRACK)
-			{
-				spreadEvent.getSource().setType(Material.AIR);
-			}
-			
-			return;
-		}
 		
 		//never spread into a claimed area, regardless of settings
 		if(this.dataStore.getClaimAt(spreadEvent.getBlock().getLocation(), false, null) != null)
@@ -535,38 +341,6 @@ public class BlockEventHandler implements Listener
 	{
 	    //don't track in worlds where claims are not enabled
         if(!GriefPrevention.instance.claimsEnabledForWorld(burnEvent.getBlock().getWorld())) return;
-        
-	    if(!GriefPrevention.instance.config_fireDestroys)
-		{
-			burnEvent.setCancelled(true);
-			Block block = burnEvent.getBlock();
-			Block [] adjacentBlocks = new Block []
-			{
-				block.getRelative(BlockFace.UP),
-				block.getRelative(BlockFace.DOWN),
-				block.getRelative(BlockFace.NORTH),
-				block.getRelative(BlockFace.SOUTH),
-				block.getRelative(BlockFace.EAST),
-				block.getRelative(BlockFace.WEST)
-			};
-			
-			//pro-actively put out any fires adjacent the burning block, to reduce future processing here
-			for(int i = 0; i < adjacentBlocks.length; i++)
-			{
-				Block adjacentBlock = adjacentBlocks[i];
-				if(adjacentBlock.getType() == Material.FIRE && adjacentBlock.getRelative(BlockFace.DOWN).getType() != Material.NETHERRACK)
-				{
-					adjacentBlock.setType(Material.AIR);
-				}
-			}
-			
-			Block aboveBlock = block.getRelative(BlockFace.UP);
-			if(aboveBlock.getType() == Material.FIRE)
-			{
-				aboveBlock.setType(Material.AIR);
-			}
-			return;
-		}
 		
 		//never burn claimed blocks, regardless of settings
 		if(this.dataStore.getClaimAt(burnEvent.getBlock().getLocation(), false, null) != null)
@@ -639,50 +413,6 @@ public class BlockEventHandler implements Listener
 		//everything else is NOT OK
 		dispenseEvent.setCancelled(true);
 	}
-	
-	@EventHandler(ignoreCancelled = true)
-    public void onTreeGrow (StructureGrowEvent growEvent)
-    {
-        //only take these potentially expensive steps if configured to do so
-	    if(!GriefPrevention.instance.config_limitTreeGrowth) return;
-	    
-	    //don't track in worlds where claims are not enabled
-        if(!GriefPrevention.instance.claimsEnabledForWorld(growEvent.getWorld())) return;
-	    
-	    Location rootLocation = growEvent.getLocation();
-        Claim rootClaim = this.dataStore.getClaimAt(rootLocation, false, null);
-        String rootOwnerName = null;
-        
-        //who owns the spreading block, if anyone?
-        if(rootClaim != null)
-        {
-            //tree growth in subdivisions is dependent on who owns the top level claim
-            if(rootClaim.parent != null) rootClaim = rootClaim.parent;
-            
-            //if an administrative claim, just let the tree grow where it wants
-            if(rootClaim.isAdminClaim()) return;
-            
-            //otherwise, note the owner of the claim
-            rootOwnerName = rootClaim.getOwnerName();
-        }
-        
-        //for each block growing
-        for(int i = 0; i < growEvent.getBlocks().size(); i++)
-        {
-            BlockState block = growEvent.getBlocks().get(i);
-            Claim blockClaim = this.dataStore.getClaimAt(block.getLocation(), false, rootClaim);
-            
-            //if it's growing into a claim
-            if(blockClaim != null)
-            {
-                //if there's no owner for the new tree, or the owner for the new tree is different from the owner of the claim
-                if(rootOwnerName == null  || !rootOwnerName.equals(blockClaim.getOwnerName()))
-                {
-                    growEvent.getBlocks().remove(i--);
-                }
-            }
-        }
-    }
 	
 	@EventHandler(ignoreCancelled = true)
     public void onInventoryPickupItem (InventoryPickupItemEvent event)

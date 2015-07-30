@@ -39,7 +39,7 @@ import org.bukkit.entity.Player;
 public class PlayerData 
 {
 	//the player's ID
-	public UUID playerID;
+	public String playerID;
 	
 	//the player's claims
 	private Vector<Claim> claims = null;
@@ -137,26 +137,8 @@ public class PlayerData
 	
 	//ignore list
 	//true means invisible (admin-forced ignore), false means player-created ignore
-	ConcurrentHashMap<UUID, Boolean> ignoredPlayers = new ConcurrentHashMap<UUID, Boolean>();
+	ConcurrentHashMap<String, Boolean> ignoredPlayers = new ConcurrentHashMap<String, Boolean>();
 	boolean ignoreListChanged = false;
-	
-	//whether or not this player is "in" pvp combat
-	public boolean inPvpCombat()
-	{
-		if(this.lastPvpTimestamp == 0) return false;
-		
-		long now = Calendar.getInstance().getTimeInMillis();
-		
-		long elapsed = now - this.lastPvpTimestamp;
-		
-		if(elapsed > GriefPrevention.instance.config_pvp_combatTimeoutSeconds * 1000) //X seconds
-		{
-			this.lastPvpTimestamp = 0;
-			return false;
-		}
-		
-		return true;
-	}
 	
 	//the number of claim blocks a player has available for claiming land
 	public int getRemainingClaimBlocks()

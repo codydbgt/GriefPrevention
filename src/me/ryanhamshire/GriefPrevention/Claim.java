@@ -44,7 +44,7 @@ public class Claim
 	
 	//ownerID.  for admin claims, this is NULL
 	//use getOwnerName() to get a friendly name (will be "an administrator" for admin claims)
-	public UUID ownerID;
+	public String ownerID; 
 	
 	//list of players who (beyond the claim owner) have permission to grant permissions in this claim
 	public ArrayList<String> managers = new ArrayList<String>();
@@ -184,7 +184,7 @@ public class Claim
 	}
 	
 	//main constructor.  note that only creating a claim instance does nothing - a claim must be added to the data store to be effective
-	Claim(Location lesserBoundaryCorner, Location greaterBoundaryCorner, UUID ownerID, String [] builderIDs, String [] containerIds, String [] accessorIDs, String [] managerIDs, Long id)
+	Claim(Location lesserBoundaryCorner, Location greaterBoundaryCorner, String ownerID, String [] builderIDs, String [] containerIds, String [] accessorIDs, String [] managerIDs, Long id)
 	{
 		//modification date
 		this.modifiedDate = Calendar.getInstance().getTime();
@@ -323,14 +323,10 @@ public class Claim
 		}
 		
 		//no building while in pvp combat
-		PlayerData playerData = GriefPrevention.instance.dataStore.getPlayerData(player.getUniqueId());
-		if(playerData.inPvpCombat())
-		{
-			return GriefPrevention.instance.dataStore.getMessage(Messages.NoBuildPvP);			
-		}
+		PlayerData playerData = GriefPrevention.instance.dataStore.getPlayerData(player.getName());
 		
 		//owners can make changes, or admins with ignore claims mode enabled
-		if(player.getUniqueId().equals(this.ownerID) || GriefPrevention.instance.dataStore.getPlayerData(player.getUniqueId()).ignoreClaims) return null;
+		if(player.getName().equals(this.ownerID) || GriefPrevention.instance.dataStore.getPlayerData(player.getName()).ignoreClaims) return null;
 		
 		//anyone with explicit build permission can make changes
 		if(this.hasExplicitPermission(player, ClaimPermission.Build)) return null;
@@ -363,7 +359,7 @@ public class Claim
 	
 	private boolean hasExplicitPermission(Player player, ClaimPermission level)
 	{
-		String playerID = player.getUniqueId().toString();
+		String playerID = player.getName().toString();
 		Set<String> keys = this.playerIDToClaimPermissionMap.keySet();
 		Iterator<String> iterator = keys.iterator();
 		while(iterator.hasNext())
@@ -407,7 +403,7 @@ public class Claim
 		}
 		
 		//claim owner and admins in ignoreclaims mode have access
-		if(player.getUniqueId().equals(this.ownerID) || GriefPrevention.instance.dataStore.getPlayerData(player.getUniqueId()).ignoreClaims) return null;
+		if(player.getName().equals(this.ownerID) || GriefPrevention.instance.dataStore.getPlayerData(player.getName()).ignoreClaims) return null;
 		
 		//look for explicit individual access, inventory, or build permission
 		if(this.hasExplicitPermission(player, ClaimPermission.Access)) return null;
@@ -436,7 +432,7 @@ public class Claim
 		if(player == null) return "";
 		
 		//owner and administrators in ignoreclaims mode have access
-		if(player.getUniqueId().equals(this.ownerID) || GriefPrevention.instance.dataStore.getPlayerData(player.getUniqueId()).ignoreClaims) return null;
+		if(player.getName().equals(this.ownerID) || GriefPrevention.instance.dataStore.getPlayerData(player.getName()).ignoreClaims) return null;
 		
 		//admin claims need adminclaims permission only.
 		if(this.isAdminClaim())
@@ -476,7 +472,7 @@ public class Claim
 		for(int i = 0; i < this.managers.size(); i++)
 		{
 			String managerID = this.managers.get(i);
-			if(player.getUniqueId().toString().equals(managerID)) return null;
+			if(player.getName().toString().equals(managerID)) return null;
 			
 			else if(managerID.startsWith("[") && managerID.endsWith("]"))
 			{
@@ -580,7 +576,7 @@ public class Claim
 		if(this.ownerID == null)
 			return GriefPrevention.instance.dataStore.getMessage(Messages.OwnerNameForAdminClaims);
 		
-		return GriefPrevention.lookupPlayerName(this.ownerID);
+		return this.ownerID;
 	}	
 	
 	//whether or not a location is in a claim

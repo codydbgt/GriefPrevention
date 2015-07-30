@@ -130,60 +130,6 @@ public class FlatFileDataStore extends DataStore
 			catch(IOException exception) {}
 		}
 		
-		//if converting up from schema version 0, rename player data files using UUIDs instead of player names
-        //get a list of all the files in the claims data folder
-        if(this.getSchemaVersion() == 0)
-        {
-            files = playerDataFolder.listFiles();
-            ArrayList<String> namesToConvert = new ArrayList<String>();
-            for(File playerFile : files)
-            {
-                namesToConvert.add(playerFile.getName());
-            }
-            
-            //resolve and cache as many as possible through various means
-            try
-            {
-                UUIDFetcher fetcher = new UUIDFetcher(namesToConvert);
-                fetcher.call();
-            }
-            catch(Exception e)
-            {
-                GriefPrevention.AddLogEntry("Failed to resolve a batch of names to UUIDs.  Details:" + e.getMessage());
-                e.printStackTrace();
-            }
-            
-            //rename files
-            for(File playerFile : files)
-            {
-                String currentFilename = playerFile.getName();
-                
-                //if corrected casing and a record already exists using the correct casing, skip this one
-                String correctedCasing = UUIDFetcher.correctedNames.get(currentFilename);
-                if(correctedCasing != null && !currentFilename.equals(correctedCasing))
-                {
-                    File correctedCasingFile = new File(playerDataFolder.getPath() + File.separator + correctedCasing);
-                    if(correctedCasingFile.exists())
-                    {
-                        continue;
-                    }
-                }
-                
-                //try to convert player name to UUID
-                UUID playerID = null;
-                try
-                {
-                    playerID = UUIDFetcher.getUUIDOf(currentFilename);
-                    
-                    //if successful, rename the file using the UUID
-                    if(playerID != null)
-                    {
-                        playerFile.renameTo(new File(playerDataFolder, playerID.toString()));
-                    }
-                }
-                catch(Exception ex){ }
-            }
-        }
 		
 		//load claims data into memory		
 		//get a list of all the files in the claims data folder
@@ -248,56 +194,29 @@ public class FlatFileDataStore extends DataStore
 						//third line is owner name
 						line = inStream.readLine();						
 						String ownerName = line;
-						UUID ownerID = null;
+						String ownerID = null; 
 						if(ownerName.isEmpty() || ownerName.startsWith("--"))
 						{
-						    ownerID = null;  //administrative land claim or subdivision
-						}
-						else if(this.getSchemaVersion() == 0)
-						{
-						    try
-						    {
-						        ownerID = UUIDFetcher.getUUIDOf(ownerName);
-						    }
-						    catch(Exception ex)
-						    {
-						        GriefPrevention.AddLogEntry("Couldn't resolve this name to a UUID: " + ownerName + ".");
-                                GriefPrevention.AddLogEntry("  Converted land claim to administrative @ " + lesserBoundaryCorner.toString());
-						    }
-						}
-						else
-						{
-						    try
-						    {
-						        ownerID = UUID.fromString(ownerName);
-						    }
-						    catch(Exception ex)
-						    {
-						        GriefPrevention.AddLogEntry("Error - this is not a valid UUID: " + ownerName + ".");
-						        GriefPrevention.AddLogEntry("  Converted land claim to administrative @ " + lesserBoundaryCorner.toString());
-						    }
+						    ownerID = "null";  //administrative land claim or subdivision
 						}
 						
 						//fourth line is list of builders
 						line = inStream.readLine();
 						String [] builderNames = line.split(";");
-						builderNames = this.convertNameListToUUIDList(builderNames);
 						
 						//fifth line is list of players who can access containers
 						line = inStream.readLine();
 						String [] containerNames = line.split(";");
-						containerNames = this.convertNameListToUUIDList(containerNames);
 						
 						//sixth line is list of players who can use buttons and switches
 						line = inStream.readLine();
 						String [] accessorNames = line.split(";");
-						accessorNames = this.convertNameListToUUIDList(accessorNames);
+
 						
 						//seventh line is list of players who can grant permissions
 						line = inStream.readLine();
 						if(line == null) line = "";
 						String [] managerNames = line.split(";");
-						managerNames = this.convertNameListToUUIDList(managerNames);
 						
 						//skip any remaining extra lines, until the "===" string, indicating the end of this claim or subdivision
 						line = inStream.readLine();
@@ -473,7 +392,7 @@ public class FlatFileDataStore extends DataStore
 	}
 	
 	@Override
-	synchronized PlayerData getPlayerDataFromStorage(UUID playerID)
+	synchronized PlayerData getPlayerDataFromStorage(String playerID)
 	{
 		File playerFile = new File(playerDataFolderPath + File.separator + playerID.toString());
 					
@@ -558,7 +477,7 @@ public class FlatFileDataStore extends DataStore
 	
 	//saves changes to player data.  MUST be called after you're done making changes, otherwise a reload will lose them
 	@Override
-	public void overrideSavePlayerData(UUID playerID, PlayerData playerData)
+	public void overrideSavePlayerData(String playerID, PlayerData playerData)
 	{
 		//never save data for the "administrative" account.  null for claim owner ID indicates administrative account
 		if(playerID == null) return;
@@ -704,7 +623,7 @@ public class FlatFileDataStore extends DataStore
 			if(file.getName().startsWith("_")) continue;
 			if(file.getName().endsWith(".ignore")) continue;
 			
-			UUID playerID = UUID.fromString(file.getName());
+			String playerID = file.getName();
 			databaseStore.savePlayerData(playerID, this.getPlayerData(playerID));
 			this.clearCachedPlayerData(playerID);
 		}
