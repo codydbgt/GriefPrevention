@@ -357,7 +357,7 @@ public class Claim
 		return reason;
 	}
 	
-	private boolean hasExplicitPermission(Player player, ClaimPermission level)
+	public boolean hasExplicitPermission(Player player, ClaimPermission level)
 	{
 		String playerID = player.getName().toString();
 		Set<String> keys = this.playerIDToClaimPermissionMap.keySet();

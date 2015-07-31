@@ -1599,12 +1599,12 @@ class PlayerEventHandler implements Listener
 		 if(!(ent instanceof Player) )return;
 		 Player p = (Player)ent;
 		 Claim c = dataStore.getClaimAt(p.getLocation(),true,null);
-		 if(c!=null)return;
-		 
-		 if( c.allowContainers(p)==null ){
+		 if(c==null)return;
+
+		 if(!(c.allowContainers(p)==null)){
+			 msg(p,"&aYou do not have ContainerTrust");
 			 p.closeInventory();
 		 }
-		 
 	}
 	
 	@EventHandler
@@ -1613,11 +1613,16 @@ class PlayerEventHandler implements Listener
 		 if(!(ent instanceof Player) )return;
 		 Player p = (Player)ent;
 		 Claim c = dataStore.getClaimAt(p.getLocation(),true,null);
-		 if(c!=null)return;
 		 
-		 if( c.allowContainers(p)==null ){
+		 if(c==null)return;
+		 if(!(c.allowContainers(p)==null)){
+			 msg(p,"&aYou do not have ContainerTrust");
 			 e.setCancelled(true);
 			 p.closeInventory();
 		 }
+	}
+	
+	public void msg(Player p,String msg){
+		p.sendMessage(ChatColor.translateAlternateColorCodes('&',msg));
 	}
 }

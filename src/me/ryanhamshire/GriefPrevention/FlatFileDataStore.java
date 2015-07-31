@@ -194,10 +194,10 @@ public class FlatFileDataStore extends DataStore
 						//third line is owner name
 						line = inStream.readLine();						
 						String ownerName = line;
-						String ownerID = null; 
+						String ownerID = line; 
 						if(ownerName.isEmpty() || ownerName.startsWith("--"))
 						{
-						    ownerID = "null";  //administrative land claim or subdivision
+						    ownerID = null;  //administrative land claim or subdivision
 						}
 						
 						//fourth line is list of builders
