@@ -36,6 +36,7 @@ import org.bukkit.World.Environment;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Tameable;
 import org.bukkit.event.EventHandler;
@@ -43,6 +44,8 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
@@ -677,32 +680,6 @@ class PlayerEventHandler implements Listener
                 }
             }
         }
-	}
-	
-	//when a player teleports
-	@EventHandler(priority = EventPriority.LOWEST)
-	public void onPlayerTeleport(PlayerTeleportEvent event)
-	{
-	    Player player = event.getPlayer();
-		PlayerData playerData = this.dataStore.getPlayerData(player.getName());
-
-		Location source = event.getFrom();
-		Claim sourceClaim = this.dataStore.getClaimAt(source, false, playerData.lastClaim);
-		if(sourceClaim != null)
-		{
-			GriefPrevention.sendMessage(player, TextMode.Err, Messages.SiegeNoTeleport);
-			event.setCancelled(true);
-			return;
-		}
-		
-		Location destination = event.getTo();
-		Claim destinationClaim = this.dataStore.getClaimAt(destination, false, null);
-		if(destinationClaim != null)
-		{
-			GriefPrevention.sendMessage(player, TextMode.Err, Messages.BesiegedNoTeleport);
-			event.setCancelled(true);
-			return;
-		}
 	}
     
 	//when a player interacts with an entity...
@@ -1615,4 +1592,32 @@ class PlayerEventHandler implements Listener
 	    
 	    return result;
     }
+	
+	@EventHandler
+	public void onopeninventory(InventoryOpenEvent e){
+		 HumanEntity ent = e.getPlayer();
+		 if(!(ent instanceof Player) )return;
+		 Player p = (Player)ent;
+		 Claim c = dataStore.getClaimAt(p.getLocation(),true,null);
+		 if(c!=null)return;
+		 
+		 if( c.allowContainers(p)==null ){
+			 p.closeInventory();
+		 }
+		 
+	}
+	
+	@EventHandler
+	public void inventoryclick(InventoryClickEvent e){
+		 HumanEntity ent = e.getWhoClicked();
+		 if(!(ent instanceof Player) )return;
+		 Player p = (Player)ent;
+		 Claim c = dataStore.getClaimAt(p.getLocation(),true,null);
+		 if(c!=null)return;
+		 
+		 if( c.allowContainers(p)==null ){
+			 e.setCancelled(true);
+			 p.closeInventory();
+		 }
+	}
 }
